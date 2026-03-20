@@ -145,11 +145,11 @@ class Circle(Entity):
     type: EntityType = field(default=EntityType.CIRCLE, init=False, repr=False)
 
     def _geometry_dict(self) -> Dict[str, Any]:
-        return {"cx": self.cx, "cy": self.cy, "radius": self.radius}
+        return {"cx": self.cx, "cy": self.cy, "r": self.radius}
 
     @classmethod
     def _from_geometry_dict(cls, d: Dict[str, Any]) -> "Circle":
-        return cls(cx=d["cx"], cy=d["cy"], radius=d["radius"])
+        return cls(cx=d["cx"], cy=d["cy"], radius=d.get("radius", d.get("r", 1.0)))
 
 
 @dataclass
@@ -163,15 +163,17 @@ class Arc(Entity):
 
     def _geometry_dict(self) -> Dict[str, Any]:
         return {
-            "cx": self.cx, "cy": self.cy, "radius": self.radius,
-            "start_angle": self.start_angle, "end_angle": self.end_angle,
+            "cx": self.cx, "cy": self.cy, "r": self.radius,
+            "startAngle": self.start_angle, "endAngle": self.end_angle,
         }
 
     @classmethod
     def _from_geometry_dict(cls, d: Dict[str, Any]) -> "Arc":
         return cls(
-            cx=d["cx"], cy=d["cy"], radius=d["radius"],
-            start_angle=d["start_angle"], end_angle=d["end_angle"],
+            cx=d["cx"], cy=d["cy"],
+            radius=d.get("radius", d.get("r", 1.0)),
+            start_angle=d.get("start_angle", d.get("startAngle", 0.0)),
+            end_angle=d.get("end_angle", d.get("endAngle", 90.0)),
         )
 
 
@@ -236,7 +238,20 @@ class Polygon(Entity):
 
     @classmethod
     def _from_geometry_dict(cls, d: Dict[str, Any]) -> "Polygon":
-        return cls(vertices=[tuple(v) for v in d["vertices"]])
+        if "vertices" in d:
+            return cls(vertices=[tuple(v) for v in d["vertices"]])
+        # JS sends {cx, cy, r, sides, rotation} — compute vertices
+        import math
+        cx = d.get("cx", 0.0)
+        cy = d.get("cy", 0.0)
+        r = d.get("r", d.get("radius", 1.0))
+        sides = int(d.get("sides", 6))
+        rot = d.get("rotation", 0.0)
+        verts = []
+        for i in range(sides):
+            angle = rot + 2 * math.pi * i / sides
+            verts.append((cx + r * math.cos(angle), cy + r * math.sin(angle)))
+        return cls(vertices=verts)
 
 
 @dataclass
@@ -254,8 +269,9 @@ class Spline(Entity):
 
     @classmethod
     def _from_geometry_dict(cls, d: Dict[str, Any]) -> "Spline":
+        pts = d.get("control_points", d.get("points", []))
         return cls(
-            control_points=[tuple(p) for p in d["control_points"]],
+            control_points=[tuple(p) for p in pts],
             degree=d.get("degree", 3),
         )
 
@@ -271,7 +287,14 @@ class Polyline(Entity):
 
     @classmethod
     def _from_geometry_dict(cls, d: Dict[str, Any]) -> "Polyline":
-        return cls(points=[tuple(p) for p in d["points"]])
+        raw = d.get("points", [])
+        pts = []
+        for p in raw:
+            if isinstance(p, dict):
+                pts.append((p["x"], p["y"]))
+            else:
+                pts.append(tuple(p))
+        return cls(points=pts)
 
 
 _ENTITY_REGISTRY: Dict[EntityType, Type[Entity]] = {
