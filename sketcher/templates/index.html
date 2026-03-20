@@ -239,15 +239,22 @@
 
           <!-- Constraints tab -->
           <div class="tab-pane active" id="tab-constraints">
-            <p class="empty-list">No constraints applied</p>
-            <!--
-              Dynamically populated:
-              <div class="constraint-item">
-                <span class="c-label">Horizontal</span>
-                <span class="c-value"></span>
-                <span class="c-remove">&times;</span>
-              </div>
-            -->
+            <div class="constraint-buttons" id="constraint-buttons">
+              <button class="cst-btn" data-cst="coincident" title="Coincident">&#8857;</button>
+              <button class="cst-btn" data-cst="horizontal" title="Horizontal">H</button>
+              <button class="cst-btn" data-cst="vertical" title="Vertical">V</button>
+              <button class="cst-btn" data-cst="parallel" title="Parallel">&#8741;</button>
+              <button class="cst-btn" data-cst="perpendicular" title="Perpendicular">&#8869;</button>
+              <button class="cst-btn" data-cst="tangent" title="Tangent">T</button>
+              <button class="cst-btn" data-cst="equal" title="Equal">=</button>
+              <button class="cst-btn" data-cst="fixed" title="Fix">&#x1F512;</button>
+              <button class="cst-btn" data-cst="distance" title="Distance">&#8596;</button>
+              <button class="cst-btn" data-cst="angle" title="Angle">&#8736;</button>
+              <button class="cst-btn" data-cst="radius" title="Radius">R</button>
+            </div>
+            <div id="constraint-list">
+              <p class="empty-list">No constraints applied</p>
+            </div>
           </div>
 
           <!-- Parameters tab -->
@@ -284,9 +291,14 @@
       <span class="status-label">Tool:</span>
       <span id="active-tool-name">Select</span>
     </div>
+    <div class="status-section" id="status-constraint-mode" style="display:none;">
+      <span id="constraint-mode-text"></span>
+    </div>
     <div class="status-section" id="status-snap">
-      <span class="status-label">Snap:</span>
-      <span id="snap-indicator">Grid</span>
+      <span id="snap-indicator" class="status-toggle" title="Toggle Snap (S)">Snap: ON</span>
+    </div>
+    <div class="status-section" id="status-grid">
+      <span id="grid-indicator" class="status-toggle" title="Toggle Grid (G)">Grid: ON</span>
     </div>
     <div class="status-spacer"></div>
     <div class="status-section" id="status-dof">
@@ -308,6 +320,7 @@
 <script src="{{ url_for('static', filename='js/properties.js') }}"></script>
 <script src="{{ url_for('static', filename='js/layers.js') }}"></script>
 <script src="{{ url_for('static', filename='js/export.js') }}"></script>
+<script src="{{ url_for('static', filename='js/auto-constraints.js') }}"></script>
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>

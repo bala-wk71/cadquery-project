@@ -31,6 +31,9 @@
       this.snapEnabled = true;
       this._spaceHeld = false;
 
+      // ── constraint mode state ──
+      this.constraintMode = null; // { type, requiredCount, selectedIds: [] }
+
       // ── modules (initialised in init()) ──
       this.canvas = null;
       this.snap = null;
@@ -40,6 +43,8 @@
       this.layers = null;
       this.exportMgr = null;
       this.properties = null;
+      this.autoConstraints = null;
+      this._autoConstraintSuggestions = [];
 
       // ── DOM refs ──
       this._canvasEl = null;
@@ -63,7 +68,10 @@
       this._statusCoordY = document.getElementById("coord-y");
       this._statusTool = document.getElementById("active-tool-name");
       this._statusSnap = document.getElementById("snap-indicator");
+      this._statusGrid = document.getElementById("grid-indicator");
       this._statusDof = document.getElementById("dof-count");
+      this._statusConstraintMode = document.getElementById("status-constraint-mode");
+      this._constraintModeText = document.getElementById("constraint-mode-text");
 
       // ── initialise modules ──
       this.canvas = new window.CanvasEngine(this._canvasEl);
@@ -103,9 +111,27 @@
 
       this.exportMgr = new window.ExportManager();
 
+      // Auto-constraint engine (SolidWorks-style suggestions)
+      if (window.AutoConstraintEngine) {
+        this.autoConstraints = new window.AutoConstraintEngine();
+      }
+
       // ── default tool ──
       this.tools.setTool("select");
       this._updateToolButton("select");
+      this._updateCursor("select");
+
+      // ── snap/grid indicator click handlers ──
+      if (this._statusSnap) {
+        this._statusSnap.addEventListener("click", function () {
+          self._toggleSnap();
+        });
+      }
+      if (this._statusGrid) {
+        this._statusGrid.addEventListener("click", function () {
+          self._toggleGrid();
+        });
+      }
 
       // ── bind events ──
       this._bindCanvasEvents();
@@ -113,6 +139,7 @@
       this._bindMenuEvents();
       this._bindKeyboardEvents();
       this._bindPanelTabs();
+      this._bindConstraintButtons();
       this._bindWindowResize();
 
       // ── start render loop ──
@@ -128,8 +155,18 @@
       var c = this._canvasEl;
 
       c.addEventListener("mousedown", function (e) {
+        if (self._spaceHeld) {
+          self._canvasEl.className = self._canvasEl.className.replace(/cursor-\S+/g, "").trim() + " cursor-grabbing";
+        }
         if (self.canvas._panning) return;
         if (e.button !== 0) return;
+
+        // ── constraint mode: intercept clicks to select entities ──
+        if (self.constraintMode) {
+          self._constraintModeClick(e);
+          return;
+        }
+
         var world = self._getWorldCoords(e);
         self.tools.onMouseDown(world.x, world.y, e);
       });
@@ -157,13 +194,6 @@
           if (snapResult) {
             world.x = snapResult.x;
             world.y = snapResult.y;
-            if (self._statusSnap) {
-              self._statusSnap.textContent = snapResult.type;
-            }
-          } else {
-            if (self._statusSnap) {
-              self._statusSnap.textContent = "None";
-            }
           }
         }
 
@@ -175,6 +205,30 @@
           6
         );
 
+        // ── auto-constraint detection while drawing ──
+        if (self.autoConstraints && self.autoConstraints.enabled) {
+          var preview = self.tools.getPreview();
+          var activeTool = self.tools.getActiveTool();
+          var drawingTools = ['line','polyline','rectangle','circle','arc','ellipse','polygon','spline','point'];
+          if (preview && preview.length > 0 && drawingTools.indexOf(activeTool) !== -1) {
+            var currentEntity = preview[preview.length - 1];
+            var tolerance = 10 / self.canvas.scale;
+            self._autoConstraintSuggestions = self.autoConstraints.detect(
+              currentEntity, self.sketch.entities, world, tolerance
+            );
+            // Apply snap adjustments from suggestions (e.g., snap to horizontal/vertical)
+            if (self._autoConstraintSuggestions.length > 0) {
+              var topSuggestion = self._autoConstraintSuggestions[0];
+              if (topSuggestion.snapPoint) {
+                world.x = topSuggestion.snapPoint.x;
+                world.y = topSuggestion.snapPoint.y;
+              }
+            }
+          } else {
+            self._autoConstraintSuggestions = [];
+          }
+        }
+
         // ── pass to active tool ──
         if (!self.canvas._panning) {
           self.tools.onMouseMove(world.x, world.y, e);
@@ -182,6 +236,9 @@
       });
 
       c.addEventListener("mouseup", function (e) {
+        if (self._spaceHeld) {
+          self._canvasEl.className = self._canvasEl.className.replace(/cursor-\S+/g, "").trim() + " cursor-grab";
+        }
         if (self.canvas._panning) return;
         if (e.button !== 0) return;
         var world = self._getWorldCoords(e);
@@ -229,6 +286,7 @@
             self.tools.setTool(toolName);
             self._updateToolButton(toolName);
             self._updateStatusTool(toolName);
+            self._updateCursor(toolName);
           }
         });
       });
@@ -368,6 +426,7 @@
             this.tools.setTool(toolName);
             this._updateToolButton(toolName);
             this._updateStatusTool(toolName);
+            this._updateCursor(toolName);
           }
           // Constraint application from Constraints menu
           else if (action && action.startsWith("cst-")) {
@@ -426,7 +485,11 @@
             return;
           case "Escape":
             e.preventDefault();
-            self._cancelAndDeselect();
+            if (self.constraintMode) {
+              self._exitConstraintMode();
+            } else {
+              self._cancelAndDeselect();
+            }
             return;
         }
 
@@ -460,6 +523,7 @@
             case " ":
               // Space held for pan — handled by CanvasEngine
               self._spaceHeld = true;
+              self._canvasEl.className = self._canvasEl.className.replace(/cursor-\S+/g, "").trim() + " cursor-grab";
               return;
           }
         }
@@ -471,6 +535,10 @@
       window.addEventListener("keyup", function (e) {
         if (e.key === " ") {
           self._spaceHeld = false;
+          // Restore tool cursor
+          var currentTool = self.tools.getActiveTool();
+          var toolName = currentTool && currentTool.name ? currentTool.name : "select";
+          self._updateCursor(toolName);
         }
       });
     }
@@ -479,6 +547,59 @@
       this.tools.setTool(name);
       this._updateToolButton(name);
       this._updateStatusTool(name);
+      this._updateCursor(name);
+    }
+
+    _updateCursor(toolName) {
+      var c = this._canvasEl;
+      // Remove all cursor-* classes
+      var classes = c.className.split(/\s+/).filter(function (cls) {
+        return cls.indexOf("cursor-") !== 0;
+      });
+
+      var cursorClass;
+      switch (toolName) {
+        case "point":
+        case "line":
+        case "polyline":
+        case "rectangle":
+        case "circle":
+        case "arc":
+        case "ellipse":
+        case "polygon":
+        case "spline":
+        case "trim":
+        case "extend":
+        case "fillet":
+        case "chamfer":
+        case "rotate":
+        case "scale":
+          cursorClass = "cursor-crosshair";
+          break;
+        case "select":
+          cursorClass = "cursor-pointer";
+          break;
+        case "move":
+          cursorClass = "cursor-move";
+          break;
+        case "copy":
+          cursorClass = "cursor-copy";
+          break;
+        case "delete":
+          cursorClass = "cursor-not-allowed";
+          break;
+        case "offset":
+        case "mirror":
+        case "constraint-mode":
+          cursorClass = "cursor-cell";
+          break;
+        default:
+          cursorClass = "cursor-crosshair";
+          break;
+      }
+
+      classes.push(cursorClass);
+      c.className = classes.join(" ");
     }
 
     // ================================================================
@@ -564,6 +685,15 @@
           this.canvas._drawEntity(ctx, p, "construction");
           ctx.restore();
         }
+      }
+
+      // ── auto-constraint suggestions ──
+      if (this.autoConstraints && this._autoConstraintSuggestions.length > 0) {
+        this.autoConstraints.renderSuggestions(
+          this.canvas.ctx,
+          this._autoConstraintSuggestions,
+          this.canvas
+        );
       }
 
       // ── snap indicator ──
@@ -664,6 +794,32 @@
       // Sync the tools reference
       this.tools.entities = this.sketch.entities;
 
+      // ── Auto-apply suggested constraints ──
+      if (this.autoConstraints && this._autoConstraintSuggestions.length > 0) {
+        var accepted = this.autoConstraints.acceptSuggestions(this._autoConstraintSuggestions);
+        for (var i = 0; i < accepted.length; i++) {
+          var ac = accepted[i];
+          // Replace placeholder entity IDs — the first entityId in the suggestion
+          // that doesn't exist yet should be the just-created entity
+          var ids = [];
+          for (var j = 0; j < ac.entityIds.length; j++) {
+            ids.push(ac.entityIds[j]);
+          }
+          // If the suggestion references the preview entity, replace with the real ID
+          for (var k = 0; k < ids.length; k++) {
+            if (ids[k] === '__current__' || ids[k] === 'current') {
+              ids[k] = entity.id;
+            }
+          }
+          // Ensure the new entity is referenced
+          if (ids.indexOf(entity.id) === -1) {
+            ids.push(entity.id);
+          }
+          this.constraints.applyConstraint(ac.type, ids, ac.value || null);
+        }
+        this._autoConstraintSuggestions = [];
+      }
+
       this._afterSketchChange();
     }
 
@@ -703,7 +859,8 @@
     _applyConstraint(type) {
       var entityIds = Array.from(this.selectedIds);
       if (entityIds.length === 0) {
-        this._setStatus("Select entities first", "error");
+        // No selection — enter constraint mode so user can pick entities
+        this._enterConstraintMode(type);
         return;
       }
 
@@ -744,6 +901,227 @@
     _onConstraintChange() {
       this.constraints.updateConstraintList("tab-constraints");
       this._solveConstraints();
+    }
+
+    // ================================================================
+    //  Constraint mode — pick-then-apply workflow
+    // ================================================================
+
+    /**
+     * Required entity count per constraint type.
+     */
+    _constraintEntityCount(type) {
+      switch (type) {
+        case "horizontal":
+        case "vertical":
+        case "fixed":
+        case "radius":
+        case "diameter":
+          return 1;
+        case "coincident":
+        case "parallel":
+        case "perpendicular":
+        case "tangent":
+        case "concentric":
+        case "equal":
+        case "symmetric":
+        case "midpoint":
+        case "collinear":
+        case "distance":
+        case "angle":
+          return 2;
+        default:
+          return 1;
+      }
+    }
+
+    /**
+     * Enter constraint mode: user picks entities, then constraint is applied.
+     */
+    _enterConstraintMode(type) {
+      var requiredCount = this._constraintEntityCount(type);
+
+      this.constraintMode = {
+        type: type,
+        requiredCount: requiredCount,
+        selectedIds: [],
+      };
+
+      // Clear normal selection
+      this.selectedIds.clear();
+      this.tools.selection = [];
+
+      // Set cursor to cell
+      this._updateCursor("constraint-mode");
+
+      // Update status bar
+      this._updateConstraintModeStatus();
+
+      // Highlight active constraint button
+      var btns = document.querySelectorAll("#constraint-buttons .cst-btn");
+      btns.forEach(function (btn) {
+        if (btn.getAttribute("data-cst") === type) {
+          btn.classList.add("active");
+        } else {
+          btn.classList.remove("active");
+        }
+      });
+    }
+
+    /**
+     * Exit constraint mode without applying.
+     */
+    _exitConstraintMode() {
+      this.constraintMode = null;
+
+      // Restore cursor
+      this._updateCursor("select");
+
+      // Hide constraint mode status
+      if (this._statusConstraintMode) {
+        this._statusConstraintMode.style.display = "none";
+      }
+
+      // Remove active state from constraint buttons
+      var btns = document.querySelectorAll("#constraint-buttons .cst-btn");
+      btns.forEach(function (btn) {
+        btn.classList.remove("active");
+      });
+
+      // Clear any constraint-mode selection highlights
+      this.selectedIds.clear();
+      this.tools.selection = [];
+      this._onSelectionChange();
+    }
+
+    /**
+     * Update the constraint mode status bar text.
+     */
+    _updateConstraintModeStatus() {
+      if (!this._statusConstraintMode || !this._constraintModeText) return;
+      if (!this.constraintMode) {
+        this._statusConstraintMode.style.display = "none";
+        return;
+      }
+
+      var cm = this.constraintMode;
+      var label = cm.type.charAt(0).toUpperCase() + cm.type.slice(1);
+      this._constraintModeText.textContent =
+        "Select entities for " + label + " (" + cm.selectedIds.length + "/" + cm.requiredCount + ")";
+      this._statusConstraintMode.style.display = "";
+    }
+
+    /**
+     * Handle a canvas click while in constraint mode.
+     */
+    _constraintModeClick(e) {
+      if (!this.constraintMode) return;
+
+      // Hit test to find clicked entity
+      var entityId = this.canvas.hitTest(
+        e.offsetX,
+        e.offsetY,
+        this.sketch.entities,
+        6
+      );
+
+      if (!entityId) return; // clicked empty space, ignore
+
+      var cm = this.constraintMode;
+
+      // Don't add the same entity twice
+      if (cm.selectedIds.indexOf(entityId) !== -1) return;
+
+      cm.selectedIds.push(entityId);
+
+      // Highlight selected entities with orange via the normal selection set
+      this.selectedIds.add(entityId);
+
+      // Update status
+      this._updateConstraintModeStatus();
+
+      // Check if we have enough entities
+      if (cm.selectedIds.length >= cm.requiredCount) {
+        this._finishConstraintMode();
+      }
+    }
+
+    /**
+     * Finish constraint mode: apply the constraint and exit.
+     */
+    _finishConstraintMode() {
+      if (!this.constraintMode) return;
+
+      var cm = this.constraintMode;
+      var type = cm.type;
+      var entityIds = cm.selectedIds.slice();
+
+      // Exit constraint mode first (clears state)
+      this._exitConstraintMode();
+
+      // Dimensional constraints need a value prompt
+      var value = null;
+      if (
+        type === "distance" ||
+        type === "angle" ||
+        type === "radius" ||
+        type === "diameter"
+      ) {
+        var input = prompt("Enter " + type + " value:");
+        if (input === null) return; // cancelled
+        value = parseFloat(input);
+        if (isNaN(value)) {
+          this._setStatus("Invalid " + type + " value", "error");
+          return;
+        }
+      }
+
+      try {
+        var constraint = this.constraints.applyConstraint(
+          type,
+          entityIds,
+          value
+        );
+
+        var cmd = window.AddConstraintCommand(this.sketch, constraint);
+        this.history.execute(cmd);
+
+        this._afterSketchChange();
+        this._setStatus(
+          type.charAt(0).toUpperCase() + type.slice(1) + " constraint applied",
+          "success"
+        );
+      } catch (err) {
+        this._setStatus(err.message, "error");
+      }
+    }
+
+    /**
+     * Bind click handlers on the constraint quick-apply buttons.
+     */
+    _bindConstraintButtons() {
+      var self = this;
+      var btns = document.querySelectorAll("#constraint-buttons .cst-btn");
+      btns.forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var cstType = btn.getAttribute("data-cst");
+          if (!cstType) return;
+
+          // If already in constraint mode for this type, cancel it
+          if (self.constraintMode && self.constraintMode.type === cstType) {
+            self._exitConstraintMode();
+            return;
+          }
+
+          // If entities are already selected, apply immediately
+          if (self.selectedIds.size > 0) {
+            self._applyConstraint(cstType);
+          } else {
+            // Enter constraint mode
+            self._enterConstraintMode(cstType);
+          }
+        });
+      });
     }
 
     _solveConstraints() {
@@ -879,6 +1257,7 @@
       this.tools.setTool("select");
       this._updateToolButton("select");
       this._updateStatusTool("select");
+      this._updateCursor("select");
 
       // Deselect
       this.selectedIds.clear();
@@ -914,12 +1293,25 @@
       } else {
         this.canvas.gridMajor = 0;
       }
+      if (this._statusGrid) {
+        this._statusGrid.textContent = this.gridVisible ? "Grid: ON" : "Grid: OFF";
+        if (this.gridVisible) {
+          this._statusGrid.classList.remove("off");
+        } else {
+          this._statusGrid.classList.add("off");
+        }
+      }
     }
 
     _toggleSnap() {
       this.snapEnabled = !this.snapEnabled;
       if (this._statusSnap) {
-        this._statusSnap.textContent = this.snapEnabled ? "Grid" : "Off";
+        this._statusSnap.textContent = this.snapEnabled ? "Snap: ON" : "Snap: OFF";
+        if (this.snapEnabled) {
+          this._statusSnap.classList.remove("off");
+        } else {
+          this._statusSnap.classList.add("off");
+        }
       }
     }
 

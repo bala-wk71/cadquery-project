@@ -252,8 +252,17 @@ html, body {
   display: block;
   width: 100%;
   height: 100%;
-  cursor: crosshair;
+  cursor: default;
 }
+#sketch-canvas.cursor-crosshair { cursor: crosshair; }
+#sketch-canvas.cursor-move { cursor: move; }
+#sketch-canvas.cursor-copy { cursor: copy; }
+#sketch-canvas.cursor-pointer { cursor: pointer; }
+#sketch-canvas.cursor-grab { cursor: grab; }
+#sketch-canvas.cursor-grabbing { cursor: grabbing; }
+#sketch-canvas.cursor-not-allowed { cursor: not-allowed; }
+#sketch-canvas.cursor-col-resize { cursor: col-resize; }
+#sketch-canvas.cursor-cell { cursor: cell; }
 
 /* ============================================================
    Right Panel
@@ -541,4 +550,76 @@ html, body {
 /* ============================================================
    Utility
    ============================================================ */
+/* --- Status bar toggles --- */
+.status-toggle {
+    cursor: pointer;
+    padding: 0 8px;
+    user-select: none;
+}
+.status-toggle:hover {
+    background: rgba(255,255,255,0.1);
+}
+.status-toggle.off {
+    opacity: 0.5;
+    text-decoration: line-through;
+}
+
 .hidden { display: none !important; }
+
+/* ============================================================
+   Constraint Quick-Apply Buttons
+   ============================================================ */
+.constraint-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  padding: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.cst-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  user-select: none;
+}
+
+.cst-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+
+.cst-btn.active {
+  background: var(--accent);
+  border-color: var(--accent-hover);
+  color: #ffffff;
+}
+
+/* ============================================================
+   Constraint Mode Visual Feedback
+   ============================================================ */
+#status-constraint-mode {
+  color: var(--warning);
+  font-weight: bold;
+  font-size: 12px;
+}
+
+.constraint-mode-banner {
+  background: var(--bg-active);
+  color: #ffffff;
+  text-align: center;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: bold;
+  border-bottom: 1px solid var(--accent);
+}

@@ -226,7 +226,10 @@
      * @param {string} containerId  The id of the container element (e.g. "tab-constraints")
      */
     updateConstraintList(containerId) {
-      var container = document.getElementById(containerId);
+      // Use the dedicated list sub-container if it exists,
+      // so that the constraint-buttons toolbar is preserved.
+      var container = document.getElementById("constraint-list")
+        || document.getElementById(containerId);
       if (!container) return;
 
       // Clear existing children
