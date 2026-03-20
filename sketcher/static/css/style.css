@@ -1,0 +1,544 @@
+/* ============================================================
+   Parametric 2D Sketcher — Dark CAD Theme
+   ============================================================ */
+
+/* --- Reset & Base --- */
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --bg-body:       #1e1e1e;
+  --bg-panel:      #2d2d2d;
+  --bg-toolbar:    #252526;
+  --bg-input:      #3c3c3c;
+  --bg-hover:      #3e3e3e;
+  --bg-active:     #094771;
+  --bg-dropdown:   #2d2d2d;
+  --text-primary:  #cccccc;
+  --text-secondary:#999999;
+  --text-muted:    #666666;
+  --accent:        #007acc;
+  --accent-hover:  #1a8ad4;
+  --border:        #3c3c3c;
+  --border-light:  #474747;
+  --separator:     #474747;
+  --danger:        #f44747;
+  --success:       #89d185;
+  --warning:       #cca700;
+  --font-family:   "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-mono:     "Cascadia Code", "Consolas", "Courier New", monospace;
+  --toolbar-width: 44px;
+  --right-panel-width: 260px;
+  --menubar-height: 28px;
+  --statusbar-height: 24px;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--font-family);
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--bg-body);
+}
+
+/* --- App Layout --- */
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  min-width: 720px;
+}
+
+/* ============================================================
+   Menu Bar
+   ============================================================ */
+#menu-bar {
+  display: flex;
+  align-items: center;
+  height: var(--menubar-height);
+  background: var(--bg-toolbar);
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+  flex-shrink: 0;
+  z-index: 100;
+}
+
+.menu-item {
+  position: relative;
+  padding: 0 10px;
+  line-height: var(--menubar-height);
+  cursor: pointer;
+  color: var(--text-primary);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.menu-item:hover,
+.menu-item.open {
+  background: var(--bg-hover);
+}
+
+/* Dropdown */
+.menu-dropdown {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 200px;
+  background: var(--bg-dropdown);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 12px rgba(0,0,0,.5);
+  z-index: 200;
+  padding: 4px 0;
+}
+
+.menu-item.open > .menu-dropdown {
+  display: block;
+}
+
+.menu-dropdown .menu-action {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 24px 4px 12px;
+  cursor: pointer;
+  color: var(--text-primary);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.menu-dropdown .menu-action:hover {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.menu-dropdown .menu-action .shortcut {
+  margin-left: 32px;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.menu-dropdown .menu-action:hover .shortcut {
+  color: #ffffffcc;
+}
+
+.menu-dropdown .menu-separator {
+  height: 1px;
+  background: var(--separator);
+  margin: 4px 0;
+}
+
+/* ============================================================
+   Main Content Area (toolbar + canvas + right panel)
+   ============================================================ */
+#main-content {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+/* ============================================================
+   Left Toolbar
+   ============================================================ */
+#toolbar {
+  display: flex;
+  flex-direction: column;
+  width: var(--toolbar-width);
+  min-width: var(--toolbar-width);
+  background: var(--bg-toolbar);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex-shrink: 0;
+  padding: 4px 0;
+}
+
+#toolbar::-webkit-scrollbar {
+  width: 4px;
+}
+#toolbar::-webkit-scrollbar-thumb {
+  background: var(--border-light);
+  border-radius: 2px;
+}
+
+.tool-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  margin: 1px auto;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  position: relative;
+}
+
+.tool-btn svg {
+  width: 20px;
+  height: 20px;
+  stroke: var(--text-primary);
+  fill: none;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tool-btn:hover {
+  background: var(--bg-hover);
+}
+
+.tool-btn.active {
+  background: var(--bg-active);
+}
+
+.tool-btn.active svg {
+  stroke: #ffffff;
+}
+
+.tool-separator {
+  width: 28px;
+  height: 1px;
+  background: var(--separator);
+  margin: 4px auto;
+}
+
+/* Tooltip */
+.tool-btn[title] {
+  position: relative;
+}
+
+.tool-btn::after {
+  content: attr(title);
+  position: absolute;
+  left: calc(100% + 6px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: #1e1e1e;
+  color: var(--text-primary);
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .15s;
+  z-index: 300;
+  border: 1px solid var(--border);
+}
+
+.tool-btn:hover::after {
+  opacity: 1;
+}
+
+/* ============================================================
+   Canvas Area
+   ============================================================ */
+#canvas-area {
+  flex: 1;
+  min-width: 200px;
+  position: relative;
+  background: var(--bg-body);
+  overflow: hidden;
+}
+
+#sketch-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+}
+
+/* ============================================================
+   Right Panel
+   ============================================================ */
+#right-panel {
+  display: flex;
+  flex-direction: column;
+  width: var(--right-panel-width);
+  min-width: 200px;
+  background: var(--bg-panel);
+  border-left: 1px solid var(--border);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+/* --- Properties Section --- */
+#properties-panel {
+  flex: 0 0 auto;
+  max-height: 50%;
+  overflow-y: auto;
+  border-bottom: 1px solid var(--border);
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 10px;
+  background: var(--bg-toolbar);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--text-secondary);
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.panel-body {
+  padding: 8px 10px;
+}
+
+/* Property rows */
+.prop-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.prop-label {
+  width: 70px;
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.prop-value {
+  flex: 1;
+}
+
+.prop-value input,
+.prop-value select {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 3px 6px;
+  border-radius: 3px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  outline: none;
+}
+
+.prop-value input:focus,
+.prop-value select:focus {
+  border-color: var(--accent);
+}
+
+.prop-value input[type="color"] {
+  height: 24px;
+  padding: 2px;
+  cursor: pointer;
+}
+
+.prop-empty {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-style: italic;
+  padding: 12px 0;
+  text-align: center;
+}
+
+/* --- Constraints / Parameters Section --- */
+#constraints-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Tabs */
+.panel-tabs {
+  display: flex;
+  height: 30px;
+  background: var(--bg-toolbar);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.panel-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  user-select: none;
+  transition: color .15s, border-color .15s;
+}
+
+.panel-tab:hover {
+  color: var(--text-primary);
+}
+
+.panel-tab.active {
+  color: var(--text-primary);
+  border-bottom-color: var(--accent);
+}
+
+/* Tab content */
+.tab-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 10px;
+}
+
+.tab-content::-webkit-scrollbar {
+  width: 6px;
+}
+.tab-content::-webkit-scrollbar-thumb {
+  background: var(--border-light);
+  border-radius: 3px;
+}
+
+.tab-pane {
+  display: none;
+}
+
+.tab-pane.active {
+  display: block;
+}
+
+/* Constraint list items */
+.constraint-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 6px;
+  border-radius: 3px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.constraint-item:hover {
+  background: var(--bg-hover);
+}
+
+.constraint-item .c-icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 6px;
+  flex-shrink: 0;
+}
+
+.constraint-item .c-label {
+  flex: 1;
+}
+
+.constraint-item .c-value {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent);
+}
+
+.constraint-item .c-remove {
+  visibility: hidden;
+  margin-left: 6px;
+  color: var(--danger);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.constraint-item:hover .c-remove {
+  visibility: visible;
+}
+
+/* Parameter rows */
+.param-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.param-name {
+  flex: 1;
+  font-size: 12px;
+}
+
+.param-input {
+  width: 80px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 3px 6px;
+  border-radius: 3px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  outline: none;
+  text-align: right;
+}
+
+.param-input:focus {
+  border-color: var(--accent);
+}
+
+.empty-list {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-style: italic;
+  text-align: center;
+  padding: 16px 0;
+}
+
+/* ============================================================
+   Status Bar
+   ============================================================ */
+#status-bar {
+  display: flex;
+  align-items: center;
+  height: var(--statusbar-height);
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 11px;
+  padding: 0 10px;
+  flex-shrink: 0;
+  user-select: none;
+  gap: 2px;
+}
+
+.status-section {
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  white-space: nowrap;
+}
+
+.status-section + .status-section {
+  border-left: 1px solid rgba(255,255,255,.25);
+}
+
+.status-spacer {
+  flex: 1;
+}
+
+.status-section .status-label {
+  margin-right: 4px;
+  opacity: .8;
+}
+
+/* ============================================================
+   Scrollbar defaults for panels
+   ============================================================ */
+#properties-panel::-webkit-scrollbar,
+#right-panel::-webkit-scrollbar {
+  width: 6px;
+}
+#properties-panel::-webkit-scrollbar-thumb,
+#right-panel::-webkit-scrollbar-thumb {
+  background: var(--border-light);
+  border-radius: 3px;
+}
+
+/* ============================================================
+   Utility
+   ============================================================ */
+.hidden { display: none !important; }

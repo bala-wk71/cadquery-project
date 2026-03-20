@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Parametric 2D Sketcher</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ============================================================
+       Menu Bar
+       ============================================================ -->
+  <nav id="menu-bar">
+
+    <!-- File -->
+    <div class="menu-item" data-menu="file">
+      File
+      <div class="menu-dropdown">
+        <div class="menu-action" data-action="file-new">New <span class="shortcut">Ctrl+N</span></div>
+        <div class="menu-action" data-action="file-open">Open&hellip; <span class="shortcut">Ctrl+O</span></div>
+        <div class="menu-action" data-action="file-save">Save <span class="shortcut">Ctrl+S</span></div>
+        <div class="menu-separator"></div>
+        <div class="menu-action" data-action="export-svg">Export SVG</div>
+        <div class="menu-action" data-action="export-dxf">Export DXF</div>
+        <div class="menu-action" data-action="export-png">Export PNG</div>
+      </div>
+    </div>
+
+    <!-- Edit -->
+    <div class="menu-item" data-menu="edit">
+      Edit
+      <div class="menu-dropdown">
+        <div class="menu-action" data-action="undo">Undo <span class="shortcut">Ctrl+Z</span></div>
+        <div class="menu-action" data-action="redo">Redo <span class="shortcut">Ctrl+Y</span></div>
+        <div class="menu-separator"></div>
+        <div class="menu-action" data-action="select-all">Select All <span class="shortcut">Ctrl+A</span></div>
+        <div class="menu-action" data-action="delete">Delete <span class="shortcut">Del</span></div>
+      </div>
+    </div>
+
+    <!-- View -->
+    <div class="menu-item" data-menu="view">
+      View
+      <div class="menu-dropdown">
+        <div class="menu-action" data-action="zoom-in">Zoom In <span class="shortcut">Ctrl++</span></div>
+        <div class="menu-action" data-action="zoom-out">Zoom Out <span class="shortcut">Ctrl+&minus;</span></div>
+        <div class="menu-action" data-action="fit-all">Fit All <span class="shortcut">Ctrl+0</span></div>
+        <div class="menu-separator"></div>
+        <div class="menu-action" data-action="toggle-grid">Toggle Grid <span class="shortcut">G</span></div>
+        <div class="menu-action" data-action="toggle-snap">Toggle Snap <span class="shortcut">S</span></div>
+      </div>
+    </div>
+
+    <!-- Tools -->
+    <div class="menu-item" data-menu="tools">
+      Tools
+      <div class="menu-dropdown">
+        <div class="menu-action" data-action="tool-select">Select <span class="shortcut">V</span></div>
+        <div class="menu-action" data-action="tool-point">Point <span class="shortcut">P</span></div>
+        <div class="menu-action" data-action="tool-line">Line <span class="shortcut">L</span></div>
+        <div class="menu-action" data-action="tool-polyline">Polyline <span class="shortcut">Shift+L</span></div>
+        <div class="menu-action" data-action="tool-rectangle">Rectangle <span class="shortcut">R</span></div>
+        <div class="menu-action" data-action="tool-circle">Circle <span class="shortcut">C</span></div>
+        <div class="menu-action" data-action="tool-arc">Arc <span class="shortcut">A</span></div>
+        <div class="menu-action" data-action="tool-ellipse">Ellipse <span class="shortcut">E</span></div>
+        <div class="menu-action" data-action="tool-polygon">Polygon</div>
+        <div class="menu-action" data-action="tool-spline">Spline</div>
+        <div class="menu-separator"></div>
+        <div class="menu-action" data-action="tool-move">Move <span class="shortcut">M</span></div>
+        <div class="menu-action" data-action="tool-copy">Copy</div>
+        <div class="menu-action" data-action="tool-trim">Trim <span class="shortcut">T</span></div>
+        <div class="menu-action" data-action="tool-extend">Extend</div>
+        <div class="menu-action" data-action="tool-offset">Offset <span class="shortcut">O</span></div>
+        <div class="menu-action" data-action="tool-mirror">Mirror</div>
+        <div class="menu-action" data-action="tool-fillet">Fillet <span class="shortcut">F</span></div>
+        <div class="menu-action" data-action="tool-chamfer">Chamfer</div>
+        <div class="menu-action" data-action="tool-rotate">Rotate</div>
+        <div class="menu-action" data-action="tool-scale">Scale</div>
+        <div class="menu-action" data-action="tool-delete">Delete <span class="shortcut">Del</span></div>
+      </div>
+    </div>
+
+    <!-- Constraints -->
+    <div class="menu-item" data-menu="constraints">
+      Constraints
+      <div class="menu-dropdown">
+        <div class="menu-action" data-action="cst-coincident">Coincident</div>
+        <div class="menu-action" data-action="cst-horizontal">Horizontal <span class="shortcut">H</span></div>
+        <div class="menu-action" data-action="cst-vertical">Vertical</div>
+        <div class="menu-action" data-action="cst-parallel">Parallel</div>
+        <div class="menu-action" data-action="cst-perpendicular">Perpendicular</div>
+        <div class="menu-action" data-action="cst-tangent">Tangent</div>
+        <div class="menu-action" data-action="cst-equal">Equal</div>
+        <div class="menu-action" data-action="cst-symmetric">Symmetric</div>
+        <div class="menu-action" data-action="cst-midpoint">Midpoint</div>
+        <div class="menu-separator"></div>
+        <div class="menu-action" data-action="cst-distance">Distance <span class="shortcut">D</span></div>
+        <div class="menu-action" data-action="cst-angle">Angle</div>
+        <div class="menu-action" data-action="cst-radius">Radius</div>
+        <div class="menu-action" data-action="cst-diameter">Diameter</div>
+        <div class="menu-action" data-action="cst-fix">Fix / Lock</div>
+      </div>
+    </div>
+
+  </nav>
+
+  <!-- ============================================================
+       Main Content: Toolbar | Canvas | Right Panel
+       ============================================================ -->
+  <main id="main-content">
+
+    <!-- ---- Left Toolbar ---- -->
+    <aside id="toolbar">
+
+      <!-- Drawing Tools -->
+      <button class="tool-btn active" data-tool="select" title="Select (V)">
+        <svg viewBox="0 0 20 20"><path d="M5 2l10 8-5 1-2 5z"/></svg>
+      </button>
+
+      <button class="tool-btn" data-tool="point" title="Point (P)">
+        <svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="2.5" fill="currentColor" stroke="none"/><circle cx="10" cy="10" r="5"/></svg>
+      </button>
+
+      <button class="tool-btn" data-tool="line" title="Line (L)">
+        <svg viewBox="0 0 20 20"><line x1="3" y1="17" x2="17" y2="3"/></svg>
+      </button>
+
+      <button class="tool-btn" data-tool="polyline" title="Polyline (Shift+L)">
+        <svg viewBox="0 0 20 20"><polyline points="2,16 7,4 13,14 18,3"/></svg>
+      </button>
+
+      <button class="tool-btn" data-tool="rectangle" title="Rectangle (R)">
+        <svg viewBox="0 0 20 20"><rect x="3" y="5" width="14" height="10" rx="0.5"/></svg>
+      </button>
+
+      <button class="tool-btn" data-tool="circle" title="Circle (C)">
+        <svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/></svg>
+      </button>
+
+      <button class="tool-btn" data-tool="arc" title="Arc (A)">
+        <svg viewBox="0 0 20 20"><path d="M4 16 A10 10 0 0 1 16 16" fill="none"/></svg>
+      </button>
+
+      <button class="tool-btn" data-tool="ellipse" title="Ellipse (E)">
+        <svg viewBox="0 0 20 20"><ellipse cx="10" cy="10" rx="8" ry="5"/></svg>
+      </button>
+
+      <button class="tool-btn" data-tool="polygon" title="Polygon">
+        <svg viewBox="0 0 20 20"><polygon points="10,2 17,7 15,16 5,16 3,7"/></svg>
+      </button>
+
+      <button class="tool-btn" data-tool="spline" title="Spline">
+        <svg viewBox="0 0 20 20"><path d="M3 15 C6 3, 14 17, 17 5" fill="none"/></svg>
+      </button>
+
+      <!-- Separator -->
+      <div class="tool-separator"></div>
+
+      <!-- Edit / Transform Tools -->
+      <button class="tool-btn" data-tool="move" title="Move (M)">
+        <svg viewBox="0 0 20 20"><path d="M10 2v16M2 10h16M10 2l-3 3M10 2l3 3M10 18l-3-3M10 18l3-3M2 10l3-3M2 10l3 3M18 10l-3-3M18 10l-3 3"/></svg>
+      </button>
+
+      <button class="tool-btn" data-tool="copy" title="Copy">
+        <svg viewBox="0 0 20 20"><rect x="6" y="6" width="10" height="10" rx="1"/><path d="M4 14V4h10" fill="none"/></svg>
+      </button>
+
+      <button class="tool-btn" data-tool="trim" title="Trim (T)">
+        <svg viewBox="0 0 20 20"><line x1="2" y1="10" x2="18" y2="10"/><line x1="7" y1="3" x2="7" y2="17"/><line x1="13" y1="3" x2="13" y2="17"/><line x1="7" y1="10" x2="13" y2="10" stroke-width="3"/></svg>
+      </button>
+
+      <button class="tool-btn" data-tool="extend" title="Extend">
+        <svg viewBox="0 0 20 20"><line x1="2" y1="14" x2="12" y2="14"/><line x1="12" y1="14" x2="18" y2="14" stroke-dasharray="2 2"/><line x1="14" y1="4" x2="14" y2="18"/></svg>
+      </button>
+
+      <button class="tool-btn" data-tool="offset" title="Offset (O)">
+        <svg viewBox="0 0 20 20"><rect x="4" y="6" width="10" height="8" rx="0.5"/><rect x="6" y="4" width="10" height="8" rx="0.5" stroke-dasharray="2 1"/></svg>
+      </button>
+
+      <button class="tool-btn" data-tool="mirror" title="Mirror">
+        <svg viewBox="0 0 20 20"><line x1="10" y1="2" x2="10" y2="18" stroke-dasharray="2 2"/><polygon points="3,14 3,6 7,10"/><polygon points="17,14 17,6 13,10"/></svg>
+      </button>
+
+      <button class="tool-btn" data-tool="fillet" title="Fillet (F)">
+        <svg viewBox="0 0 20 20"><path d="M4 16V8 Q4 4 8 4 H16" fill="none"/></svg>
+      </button>
+
+      <button class="tool-btn" data-tool="chamfer" title="Chamfer">
+        <svg viewBox="0 0 20 20"><path d="M4 16V8L8 4H16" fill="none"/></svg>
+      </button>
+
+      <button class="tool-btn" data-tool="rotate" title="Rotate">
+        <svg viewBox="0 0 20 20"><path d="M15 5A6 6 0 1 0 16 12" fill="none"/><path d="M15 2l2 3-3 1"/></svg>
+      </button>
+
+      <button class="tool-btn" data-tool="scale" title="Scale">
+        <svg viewBox="0 0 20 20"><rect x="3" y="9" width="8" height="8" rx="0.5"/><rect x="7" y="3" width="10" height="10" rx="0.5" stroke-dasharray="2 1"/></svg>
+      </button>
+
+      <button class="tool-btn" data-tool="delete" title="Delete (Del)">
+        <svg viewBox="0 0 20 20"><line x1="4" y1="4" x2="16" y2="16"/><line x1="16" y1="4" x2="4" y2="16"/></svg>
+      </button>
+
+    </aside>
+
+    <!-- ---- Canvas Area ---- -->
+    <section id="canvas-area">
+      <canvas id="sketch-canvas"></canvas>
+    </section>
+
+    <!-- ---- Right Panel ---- -->
+    <aside id="right-panel">
+
+      <!-- Properties (top) -->
+      <section id="properties-panel">
+        <header class="panel-header">Properties</header>
+        <div class="panel-body" id="properties-body">
+          <p class="prop-empty">No selection</p>
+          <!--
+            Dynamically populated, example rows:
+            <div class="prop-row">
+              <span class="prop-label">Type</span>
+              <span class="prop-value"><input type="text" value="Line" readonly></span>
+            </div>
+          -->
+        </div>
+      </section>
+
+      <!-- Constraints & Parameters (bottom) -->
+      <section id="constraints-panel">
+        <div class="panel-tabs">
+          <div class="panel-tab active" data-tab="constraints">Constraints</div>
+          <div class="panel-tab" data-tab="parameters">Parameters</div>
+        </div>
+        <div class="tab-content">
+
+          <!-- Constraints tab -->
+          <div class="tab-pane active" id="tab-constraints">
+            <p class="empty-list">No constraints applied</p>
+            <!--
+              Dynamically populated:
+              <div class="constraint-item">
+                <span class="c-label">Horizontal</span>
+                <span class="c-value"></span>
+                <span class="c-remove">&times;</span>
+              </div>
+            -->
+          </div>
+
+          <!-- Parameters tab -->
+          <div class="tab-pane" id="tab-parameters">
+            <p class="empty-list">No parameters defined</p>
+            <!--
+              Dynamically populated:
+              <div class="param-row">
+                <span class="param-name">length_1</span>
+                <input class="param-input" type="number" value="50">
+              </div>
+            -->
+          </div>
+
+        </div>
+      </section>
+
+    </aside>
+
+  </main>
+
+  <!-- ============================================================
+       Status Bar
+       ============================================================ -->
+  <footer id="status-bar">
+    <div class="status-section" id="status-coords">
+      <span class="status-label">X:</span>
+      <span id="coord-x">0.00</span>
+      &nbsp;
+      <span class="status-label">Y:</span>
+      <span id="coord-y">0.00</span>
+    </div>
+    <div class="status-section" id="status-tool">
+      <span class="status-label">Tool:</span>
+      <span id="active-tool-name">Select</span>
+    </div>
+    <div class="status-section" id="status-snap">
+      <span class="status-label">Snap:</span>
+      <span id="snap-indicator">Grid</span>
+    </div>
+    <div class="status-spacer"></div>
+    <div class="status-section" id="status-dof">
+      <span class="status-label">DOF:</span>
+      <span id="dof-count">0</span>
+    </div>
+  </footer>
+
+</div><!-- /#app -->
+
+<!-- ============================================================
+     Scripts
+     ============================================================ -->
+<script src="{{ url_for('static', filename='js/canvas.js') }}"></script>
+<script src="{{ url_for('static', filename='js/snap.js') }}"></script>
+<script src="{{ url_for('static', filename='js/tools.js') }}"></script>
+<script src="{{ url_for('static', filename='js/constraints.js') }}"></script>
+<script src="{{ url_for('static', filename='js/history.js') }}"></script>
+<script src="{{ url_for('static', filename='js/properties.js') }}"></script>
+<script src="{{ url_for('static', filename='js/layers.js') }}"></script>
+<script src="{{ url_for('static', filename='js/export.js') }}"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
